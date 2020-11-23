@@ -1,0 +1,24 @@
+#!/usr/bin/python3
+
+import sshpubkeys
+import sys
+
+try:
+  pubkey = "/etc/ssh/ssh_host_rsa_key.pub"
+
+  with open(pubkey, "r") as file:
+    pem = file.read()
+  
+  ssh = sshpubkeys.SSHKey(pem, strict=True)
+  ssh.parse()
+
+  if ssh.bits < 4096:
+    sys.exit(1)
+  else:
+    sys.exit()
+except sshpubkeys.InvalidKeyError as err:
+  print("invalid key: ", err, file=sys.stderr)
+  sys.exit(2)
+except Exception as err:
+  print(err, file=sys.stderr)
+  sys.exit(3)

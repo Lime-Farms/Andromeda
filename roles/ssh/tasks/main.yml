@@ -1,0 +1,80 @@
+- name: run debian specific setup tasks
+  import_tasks: debian.yml
+  when: ansible_facts['os_family']|lower == 'debian'
+
+- name: install ssh configuration files
+  copy:
+    src: files/etc
+    dest: /
+    owner: root
+    group: root
+
+- name: install ssh validation tools
+  copy:
+    src: files/usr
+    dest: /
+    owner: root
+    group: root
+    mode: "0555"
+
+- name: check if the ssh keys need to be rebuilt
+  command:
+    argv:
+      - validate-ssh
+  register: isvalid
+  failed_when:
+    - isvalid.rc > 1
+  changed_when:
+    - isvalid.rc > 0
+
+- name: remove weak ssh host keys
+  file:
+    name: "/etc/ssh/ssh_host_{{ item }}"
+    state: absent
+  loop:
+    - rsa_key
+    - rsa_key.pub
+    - ed25519_key
+    - ed25519_key.pub
+  when:
+    - isvalid.rc > 0
+
+- name: regenerate the rsa key
+  command:
+    argv:
+      - ssh-keygen
+      - -t
+      - rsa
+      - -b
+      - 4096
+      - -f
+      - /etc/ssh/ssh_host_rsa_key
+      - -N
+      - ""
+  changed_when:
+    - false
+  when:
+    - isvalid.rc > 0
+
+- name: regenerate the ed25519 key
+  command:
+    argv:
+      - ssh-keygen
+      - -t
+      - ed25519
+      - -f
+      - /etc/ssh/ssh_host_ed25519_key
+      - -N
+      - ""
+  changed_when:
+    - false
+  when:
+    - isvalid.rc > 0
+
+- name: restart the sshd service
+  service:
+    name: sshd
+    state: restarted
+    enabled: yes
+  when:
+    - isvalid.rc > 0

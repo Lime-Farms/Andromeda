@@ -1,0 +1,8 @@
+- name: ensure packages are installed
+  apt:
+    name:
+      - python3-openssl
+      - python3-sshpubkeys
+    state: present
+  environment:
+    DEBIAN_FRONTEND: noninteractive
