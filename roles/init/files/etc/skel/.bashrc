@@ -4,7 +4,7 @@
 
 __join_PATH() {
   local path
-  printf -v path %s "$@"
+  printf -v path %s: "$@"
   export PATH=${path%:}
 }
 
