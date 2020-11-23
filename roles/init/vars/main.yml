@@ -1,0 +1,16 @@
+debian_packages:
+  - build-essential
+  - dialog
+  - gawk
+  - iptables-persistent
+  - jq
+  - nmap
+  - pry
+  - rsync
+  - ruby
+  - ruby-net-ssh
+  - screen
+  - shellcheck
+  - socat
+  - strace
+  - sudo

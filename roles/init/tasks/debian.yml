@@ -1,0 +1,50 @@
+- name: update installed packages
+  apt:
+    upgrade: dist
+    update_cache: yes
+
+- name: add source for latest git
+  apt_repository:
+    repo: deb http://deb.debian.org/debian buster-backports main
+    state: present
+
+- name: install the latest git
+  apt:
+    name: git
+    default_release: buster-backports
+    state: present
+
+- name: ensure necessary packages are installed
+  apt:
+    name: "{{ debian_packages }}"
+    state: present
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+
+- name: ensure apparmor utilities are installed
+  apt:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - apparmor
+    - apparmor-utils
+    - auditd
+    - apparmor-profiles
+    - apparmor-profiles-extra
+
+- name: ensure auditd starts on bootup
+  service:
+    name: auditd
+    state: started
+    enabled: yes
+
+- name: set the executable bit on rrsync
+  file:
+    path: /usr/share/doc/rsync/scripts/rrsync
+    mode: "0555"
+
+- name: make sure rrsync is found in the PATH
+  file:
+    src: /usr/share/doc/rsync/scripts/rrsync
+    dest: /usr/bin/rrsync
+    state: link

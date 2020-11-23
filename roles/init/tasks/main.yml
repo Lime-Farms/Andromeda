@@ -1,0 +1,24 @@
+- name: run debian specific setup tasks
+  import_tasks: debian.yml
+  when: ansible_facts['os_family']|lower == 'debian'
+
+- name: install configuration files
+  copy:
+    src: files/etc
+    dest: /
+    owner: root
+    group: root
+
+- name: remove some default configurations
+  file:
+    name: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/skel/.bash_logout
+    - /etc/skel/.profile
+
+- name: create the sudo group policy
+  copy:
+    content: "%sudo\tALL=(ALL:ALL)\tNOPASSWD: ALL\n"
+    dest: /etc/sudoers.d/admins
+    validate: /usr/sbin/visudo -csf %s
