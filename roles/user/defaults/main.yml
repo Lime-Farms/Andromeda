@@ -1,0 +1,6 @@
+username: myuser
+group: myuser
+comment: some random user
+shell: /bin/bash
+admin: no
+sshkey: ssh-fake thisisaplaceholderkey default key

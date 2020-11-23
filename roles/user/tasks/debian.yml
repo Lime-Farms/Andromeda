@@ -1,0 +1,8 @@
+- name: ensure packages are installed
+  apt:
+    name:
+      - openssl
+      - pwgen
+    state: present
+  environment:
+    DEBIAN_FRONTEND: noninteractive
