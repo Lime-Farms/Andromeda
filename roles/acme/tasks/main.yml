@@ -2,10 +2,12 @@
   import_tasks: debian.yml
   when: ansible_facts['os_family']|lower == 'debian'
 
-- name: generate dehydrated domains.txt file
-  copy:
-    content: "{{ subject_name }}\n"
-    dest: /etc/dehydrated/domains.txt
+- name: add the primary name to the domains.txt file
+  lineinfile:
+    path: /etc/dehydrated/domains.txt
+    create: yes
+    line: "{{ subject_name }}"
+    insertbefore: BOF
 
 - name: add SAN entries to the domains.txt file
   lineinfile:
