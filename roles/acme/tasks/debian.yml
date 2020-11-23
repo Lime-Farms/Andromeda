@@ -1,0 +1,7 @@
+- name: ensure packages are installed
+  apt:
+    name:
+      - dehydrated
+    state: present
+  environment:
+    DEBIAN_FRONTEND: noninteractive

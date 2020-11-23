@@ -29,4 +29,16 @@ This role has the following default variables:
   * admin: flag to make the user an administrator
   * sshkey: SSH public key required for signing into the server
 
+### `acme`
+
+A role specialized for requesting and installing a certificate over
+[ACME](https://tools.ietf.org/html/rfc8555) using the dehydrated client and
+Cloudflare DNS authentication.
+
+This role has the following default variables:
+
+  * acme_endpoint: server to request a certificate from
+  * subject_name: primary name for the certificate
+  * alternate_names: array of names to add to the SAN
+
 ## Playbooks
