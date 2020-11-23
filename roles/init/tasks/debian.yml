@@ -3,12 +3,12 @@
     upgrade: dist
     update_cache: yes
 
-- name: add source for latest git
+- name: enable buster-backports
   apt_repository:
     repo: deb http://deb.debian.org/debian buster-backports main
     state: present
 
-- name: install the latest git
+- name: install git from buster-backports
   apt:
     name: git
     default_release: buster-backports
