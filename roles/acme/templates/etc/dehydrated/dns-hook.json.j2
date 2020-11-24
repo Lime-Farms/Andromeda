@@ -1,0 +1,5 @@
+{
+  "root": "{{ domain }}",
+  "key": "{{ cf_key }}",
+  "email": "{{ cf_email | default(renew_email, true) }}"
+}

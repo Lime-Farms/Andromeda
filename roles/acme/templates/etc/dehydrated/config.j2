@@ -1,0 +1,12 @@
+CA={{ acme_endpoint }}
+CHALLENGETYPE=dns-01
+BASEDIR=/etc/dehydrated
+DOMAINS_TXT=$BASEDIR/domains.txt
+CERTDIR=$BASEDIR/certs
+ACCOUNTDIR=$BASEDIR/accounts
+KEYSIZE=4096
+HOOK=/usr/bin/dehydrated-cf-dns-hook
+PRIVATE_KEY_RENEW=no
+LOCKFILE=$BASEDIR/lock
+CONTACT_EMAIL={{ renew_email }}
+AUTO_CLEANUP=yes
