@@ -1,6 +1,7 @@
 debian_packages:
   - build-essential
   - dialog
+  - dnsutils
   - gawk
   - iptables-persistent
   - jq
