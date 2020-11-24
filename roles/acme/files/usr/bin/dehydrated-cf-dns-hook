@@ -1,0 +1,230 @@
+#!/usr/bin/ruby
+
+require "faraday"
+require "fileutils"
+require "json"
+require "resolv"
+require "uri"
+
+module Util
+  def self.log(msg)
+    puts "[Hook] [#{Time.now.strftime "%m/%d/%Y %H:%M"}] #{msg}"
+  end
+end
+
+module Api
+  ENDPOINT = "https://api.cloudflare.com/client/v4".freeze
+
+  def self.url(*args)
+    URI.parse File.join(ENDPOINT, *args)
+  end
+
+  def self.post(url: nil, data: "", key: nil, email: nil)
+    if url.nil?
+      raise ArgumentError, "no url provided"
+    elsif key.nil?
+      raise ArgumentError, "no api key provided"
+    elsif email.nil?
+      raise ArgumentError, "no email provided"
+    end
+
+    res = Faraday.post url, data do |req|
+      req.headers["User-Agent"] = "andromeda/2.0"
+      req.headers["Content-Type"] = "application/json"
+      req.headers["Accept"] = "application/json"
+      req.headers["X-Auth-Key"] = key
+      req.headers["X-Auth-Email"] = email
+    end
+
+    JSON.parse res.body, symbolize_names: true
+  end
+
+  def self.delete(url: nil, key: nil, email: nil)
+    if url.nil?
+      raise ArgumentError, "no url provided"
+    elsif key.nil?
+      raise ArgumentError, "no api key provided"
+    elsif email.nil?
+      raise ArgumentError, "no email provided"
+    end
+
+    res = Faraday.delete url do |req|
+      req.headers["User-Agent"] = "andromeda/2.0"
+      req.headers["Content-Type"] = "application/json"
+      req.headers["Accept"] = "application/json"
+      req.headers["X-Auth-Key"] = key
+      req.headers["X-Auth-Email"] = email
+    end
+
+    JSON.parse res.body, symbolize_names: true
+  end
+
+  def self.get(url: nil, params: { }, key: nil, email: nil)
+    if url.nil?
+      raise ArgumentError, "no url provided"
+    elsif key.nil?
+      raise ArgumentError, "no api key provided"
+    elsif email.nil?
+      raise ArgumentError, "no email provided"
+    end
+
+    res = Faraday.get url do |req|
+      req.params = params
+      req.headers["User-Agent"] = "andromeda/2.0"
+      req.headers["Content-Type"] = "application/json"
+      req.headers["Accept"] = "application/json"
+      req.headers["X-Auth-Key"] = key
+      req.headers["X-Auth-Email"] = email
+    end
+
+    JSON.parse res.body, symbolize_names: true
+  end
+
+  def self.zone_id(root: nil, key: nil, email: nil)
+    res = get url: url("zones"), params: { name: root }, key: key, email: email
+    res[:result].first[:id]
+  end
+end
+
+module Hooks
+  def self.startup_hook
+    Util.log "=================================="
+    Util.log "=                                ="
+    Util.log "= Dehydrated Cloudflare DNS Hook ="
+    Util.log "=                                ="
+    Util.log "=      naughtysysadmins.com      ="
+    Util.log "=                                ="
+    Util.log "=================================="
+  end
+
+  def self.deploy_challenge(root: nil, key: nil, email: nil, domain: nil, token: nil)
+    Util.log "deploying challenge token"
+
+    zone_id = Api.zone_id root: root, key: key, email: email
+
+    Util.log "zone id is #{zone_id}"
+    Util.log "token data is #{token}"
+
+    data = {
+      type: "TXT", name: "_acme-challenge.#{domain}",
+      content: token, ttl: 120, proxied: false
+    }.to_json
+
+    url = Api.url "zones", zone_id, "dns_records"
+    res = Api.post url: url, data: data, key: key, email: email
+
+    unless res[:success]
+      Util.log "DNS update was not successful: #{res.to_json}"
+      exit 1
+    end
+
+    Util.log "DNS update was successful"
+    Util.log "sleeping for up to 3 minutes to allow for propagation"
+
+    now = Time.now
+    dns = Resolv::DNS.new
+    dns.timeouts = 3
+
+    while Time.now - now < 180
+      begin
+        res = dns.getresource("_acme-challenge.#{domain}.#{root}", Resolv::DNS::Resource::IN::TXT)
+
+        unless res.strings.size.empty?
+          Util.log "successful lookup: #{res.strings.first}"
+          break
+        end
+      rescue Resolv::ResolvError
+        Util.log "did not get an answer"
+        sleep 5
+      end
+    end
+  end
+
+  def self.invalid_challenge(domain: nil, reason: nil)
+    Util.log "the challenge was unsuccessful"
+    Util.log "#{domain}: #{reason}"
+  end
+
+  def self.clean_challenge(root: nil, key: nil, email: nil, domain: nil, token: nil)
+    Util.log "cleaning challenge token"
+
+    zone_id = Api.zone_id root: root, key: key, email: email
+
+    Util.log "zone id is #{zone_id}"
+    Util.log "token data is #{token}"
+
+    url = Api.url "zones", zone_id, "dns_records"
+    query = { type: "TXT", name: "_acme-challenge.#{domain}" }
+    record_ids = Api.get url: url, params: query, key: key, email: email
+
+    record_ids[:result].each do |record|
+      Util.log "deleting record #{record[:id]}"
+
+      url = Api.url "zones", zone_id, "dns_records", record[:id]
+      res = Api.delete url: url, key: key, email: email
+
+      Util.log "result #{res.to_json}"
+    end
+  end
+
+  def self.deploy_cert(domain: nil, key: nil, cert: nil, full: nil, chain: nil)
+    Util.log "deploying certificate files"
+
+    cert_path = File.join "", "etc", "ssl", "le", domain
+    FileUtils.mkdir_p cert_path
+    FileUtils.cp key, File.join(cert_path, "cert.key")
+    FileUtils.cp cert, File.join(cert_path, "cert.pem")
+    FileUtils.cp full, File.join(cert_path, "full.pem")
+    FileUtils.cp chain, File.join(cert_path, "chain.pem")
+    FileUtils.chown_R "root", "root", cert_path
+    FileUtils.chmod 0644, Dir[File.join cert_path, "*.pem"]
+    FileUtils.chmod 0600, File.join(cert_path, "cert.key")
+
+    Util.log "running deloy hooks"
+
+    Dir[File.join "", "etc", "dns-hooks.d"].each do |hook|
+      if FileTest.executable? hook
+        system(hook)
+      end
+    end
+  end
+
+  def self.exit_hook(reason: nil)
+    unless reason.nil?
+      Util.log ":( there was a problem: #{reason}"
+    end
+
+    Util.log "Goodbye, world!"
+  end
+end
+
+begin
+  config = File.open "/etc/dehydrated/dns-hook.json" do |file|
+    JSON.parse file.read, symbolize_names: true
+  end
+
+  case ARGV.first
+  when "startup_hook"
+    Hooks.startup_hook
+  when "deploy_challenge"
+    Hooks.deploy_challenge **config, domain: ARGV[1], token: ARGV[3]
+  when "invalid_challenge"
+    Hooks.invalid_challenge domain: ARGV[1], reason: ARGV[2]
+  when "clean_challenge"
+    Hooks.clean_challenge **config, domain: ARGV[1], token: ARGV[3]
+  when "deploy_cert"
+    opts = [:domain, :key, :cert, :full, :chain].zip(ARGV[1..-1]).to_h
+    Hooks.deploy_cert **opts
+  when "exit_hook"
+    Hooks.exit_hook reason: ARGV[1]
+  end
+rescue StandardError => err
+  STDERR.puts "Traceback (most recent call last):"
+
+  err.backtrace.reverse[0..-2].each_with_index do |msg, idx|
+    STDERR.puts "\t#{err.backtrace.size - 1 - idx}: from #{msg}"
+  end
+
+  STDERR.puts "#{err.backtrace.first}: #{err.message} (#{err.class.to_s})"
+  exit 1
+end
