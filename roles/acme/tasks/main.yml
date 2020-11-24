@@ -79,3 +79,17 @@
     - result.rc == 0
   when:
     - valid.rc != 0
+
+- name: log order errors to file
+  copy:
+    content: "{{ result.stderr }}"
+    dest: /var/log/dehydrated-order.log
+  when:
+    - result is not skipped
+
+- name: renew certificate orders
+  cron:
+    name: certificate renew
+    minute: "0"
+    month: "*/2"
+    job: "/usr/bin/dehydrated -c > /var/log/dehydrated-order.log 2>&1"

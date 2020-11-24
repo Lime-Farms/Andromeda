@@ -41,5 +41,8 @@ This role has the following default variables:
   * subject_name: primary name for the certificate
   * alternate_names: array of names to add to the SAN
   * renew_email: email to direct renewal notices to
+  * cf_key: global api key from Cloudflare
+  * cf_email: email used to register with Cloudflare
+  * domain: Root domain name to create zone records against
 
 ## Playbooks
