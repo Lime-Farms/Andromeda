@@ -15,3 +15,67 @@
     line: "{{ item }}"
     insertafter: '^{{ subject_name }}$'
   with_items: "{{ alternate_names | default([], true) }}"
+
+- name: generate dehydrated config file
+  template:
+    src: etc/dehydrated/config.j2
+    dest: /etc/dehydrated/config
+
+- name: verify no ACME accounts are present
+  find:
+    paths: /etc/dehydrated/accounts
+    recurse: no
+    file_type: directory
+  register: accounts
+
+- name: register with the ACME server
+  command:
+    argv:
+      - dehydrated
+      - --register
+      - --accept-terms
+  changed_when:
+    - accounts.matched == 0
+  when:
+    - accounts.matched == 0
+
+- name: install certificate tools
+  copy:
+    src: files/usr
+    dest: /
+    owner: root
+    group: root
+    mode: "0555"
+
+- name: create the directory for extended hooks
+  file:
+    path: /etc/dns-hooks.d
+    state: directory
+
+- name: generate dehydrated dns-hook config file
+  template:
+    src: etc/dehydrated/dns-hook.json.j2
+    dest: /etc/dehydrated/dns-hook.json
+
+- name: verify if existing certificates are valid
+  command:
+    argv:
+      - renewal
+      - -q
+      - "/etc/ssl/le/{{ subject_name }}/cert.pem"
+  register: valid
+  changed_when:
+    - valid.rc != 0
+  failed_when:
+    - valid.rc > 1
+
+- name: request certificates from the ACME serve
+  command:
+    argv:
+      - dehydrated
+      - -c
+  register: result
+  changed_when:
+    - result.rc == 0
+  when:
+    - valid.rc != 0

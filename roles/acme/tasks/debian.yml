@@ -2,6 +2,8 @@
   apt:
     name:
       - dehydrated
+      - ruby-faraday
     state: present
+    default_release: buster-backports
   environment:
     DEBIAN_FRONTEND: noninteractive

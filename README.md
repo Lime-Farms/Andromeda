@@ -40,5 +40,6 @@ This role has the following default variables:
   * acme_endpoint: server to request a certificate from
   * subject_name: primary name for the certificate
   * alternate_names: array of names to add to the SAN
+  * renew_email: email to direct renewal notices to
 
 ## Playbooks
