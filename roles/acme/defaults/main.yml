@@ -1,0 +1,7 @@
+acme_endpoint: https://acme-v02.api.letsencrypt.org/directory
+subject_name: "{{ inventory_hostname }}"
+alternate_names:
+renew_email: jesse.james@trains.com
+cf_key: ABCDEFG1234
+cf_email: 
+domain: example.com
