@@ -14,3 +14,4 @@ debian_packages:
   - socat
   - strace
   - sudo
+  - tcpdump
