@@ -1,0 +1,90 @@
+#!/usr/bin/ruby
+
+# potential features:
+# - trusted?
+# - write to log
+# - CT check
+# - parse each cert in the file
+# - verify is a valid chain
+
+require "date"
+require "json"
+require "openssl"
+require "optparse"
+
+opts = { out_form: :json, write_to: :stdout }
+
+OptionParser.new do |parser|
+  parser.on "-j", "--json", "output data as JSON" do
+    opts[:out_form] = :json
+  end
+
+  parser.on "-q", "--quiet", "output no data" do
+    opts[:out_form] = :quiet
+  end
+
+  parser.on "-w", "--write=FILE", "write output to FILE" do |file|
+    opts[:write_to] = file
+  end
+end.parse!
+
+begin
+  certs = ARGV.map do |filename|
+    unless File.exist? filename
+      exit 1
+    end
+
+    pem = File.open filename, ?r, &:read
+    cert = OpenSSL::X509::Certificate.new pem
+    now = Time.now
+
+    attrs = {
+      expired: cert.not_after < now,
+      days_left: 0, san: [], ca: false,
+      filename: filename
+    }
+
+    unless attrs[:expired]
+      end_date = Date.parse(cert.not_after.to_s)
+      current_date = Date.parse(now.to_s)
+      attrs[:days_left] = end_date.mjd - current_date.mjd
+    end
+
+    exts = cert.extensions.map(&:to_h).map do |ext|
+      [ext["oid"], ext["value"]]
+    end.to_h
+
+    attrs[:san] = exts["subjectAltName"].split(", ").map do |entry|
+      entry.split(?:, 2).last
+    end if exts.key? "subjectAltName"
+
+    attrs[:ca] = exts["basicConstraints"].split(", ").any? do |attr|
+      attr == "CA:TRUE"
+    end if exts.key? "basicConstraints"
+
+    attrs
+  end.delete_if &:"nil?"
+
+  if opts[:write_to] == :stdout
+    puts certs.to_json
+  else
+    File.open opts[:write_to], ?w do |file|
+      file.write certs.to_json
+    end
+  end if opts[:out_form] == :json
+
+  if certs.any? {|cert| cert[:expired] }
+    exit 1
+  else
+    exit
+  end
+rescue StandardError => err
+  STDERR.puts "Traceback (most recent call last):"
+
+  err.backtrace.reverse[0..-2].each_with_index do |msg, idx|
+    STDERR.puts "\t#{err.backtrace.size - 1 - idx}: from #{msg}"
+  end
+
+  STDERR.puts "#{err.backtrace.first}: #{err.message} (#{err.class.to_s})"
+  exit 2
+end
