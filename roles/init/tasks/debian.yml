@@ -23,14 +23,13 @@
 
 - name: ensure apparmor utilities are installed
   apt:
-    name: "{{ item }}"
+    name:
+      - apparmor
+      - apparmor-utils
+      - auditd
+      - apparmor-profiles
+      - apparmor-profiles-extra
     state: present
-  loop:
-    - apparmor
-    - apparmor-utils
-    - auditd
-    - apparmor-profiles
-    - apparmor-profiles-extra
 
 - name: ensure auditd starts on bootup
   service:
