@@ -62,8 +62,6 @@
   file:
     path: /usr/minecraft/build-tools
     state: directory
-  become: yes
-  become_user: minecraft
 
 - name: check if the BuildTools jar exists
   stat:
@@ -75,8 +73,6 @@
     url: https://hub.spigotmc.org/jenkins/job/BuildTools/lastSuccessfulBuild/artifact/target/BuildTools.jar
     dest: /usr/minecraft/build-tools/BuildTools.jar
     mode: '0666'
-  become: yes
-  become_user: minecraft
   when: not build_jar.stat.exists
 
 - name: check if the BuildTools jar has already run
@@ -91,16 +87,12 @@
       - -jar
       - BuildTools.jar
     chdir: /usr/minecraft/build-tools
-  become: yes
-  become_user: minecraft
   when: not build_log.stat.exists
 
 - name: create the directory for the server jar
   file:
     path: /usr/minecraft/server
     state: directory
-  become: yes
-  become_user: minecraft
 
 - name: find the server jar
   find:
@@ -119,16 +111,12 @@
       - /usr/minecraft/server
   with_items:
     - "{{ file_paths.files }}"
-  become: yes
-  become_user: minecraft
 
 - name: create a link to the server jar
   file:
     src: "{{ file_paths.files[0].path | basename }}"
     dest: /usr/minecraft/server/spigot.jar
     state: link
-  become: yes
-  become_user: minecraft
   when: file_paths.files | length > 0
 
 - name: install the minecraft eula
@@ -146,6 +134,13 @@
     owner: minecraft
     group: games
     mode: "0644"
+
+- name: set proper permissions on the minecraft directory
+  file:
+    dest: /usr/minecraft
+    owner: minecraft
+    group: games
+    recurse: yes
 
 - name: install the minecraft service unit
   template:
