@@ -1,0 +1,162 @@
+- name: run debian specific setup tasks
+  import_tasks: debian.yml
+  when: ansible_facts['os_family']|lower == 'debian'
+
+- name: determine if the minecraft service user is already present
+  command:
+    argv:
+      - grep
+      - -q
+      - "^minecraft:"
+      - /etc/passwd
+  register: user_state
+  ignore_errors: yes
+  failed_when:
+    - user_state.rc < 0
+  changed_when:
+    - user_state.rc > 0
+
+- name: generate a random password
+  command:
+    argv:
+      - pwgen
+      - -cnys
+      - 16
+      - 1
+  register: rand_pass
+  changed_when:
+    - true
+  when:
+    - user_state.changed|bool
+
+- name: encrypt the generated password
+  command:
+    stdin: "{{ rand_pass.stdout }}"
+    argv:
+      - openssl
+      - passwd
+      - -stdin
+      - -quiet
+      - -6
+  register: encrypted
+  changed_when:
+    - true
+  when:
+    - user_state.changed|bool
+
+- name: create the user
+  user:
+    name: minecraft
+    password: "{{ encrypted.stdout }}"
+    update_password: on_create
+    comment: Minecraft Server
+    shell: /sbin/nologin
+    group: games
+    create_home: yes
+    home: /usr/minecraft
+    skeleton: /dev/null
+  when:
+    user_state.changed|bool
+
+- name: create the directory for the BuildTools jar
+  file:
+    path: /usr/minecraft/build-tools
+    state: directory
+  become: yes
+  become_user: minecraft
+
+- name: check if the BuildTools jar exists
+  stat:
+    path: /usr/minecraft/build-tools/BuildTools.jar
+  register: build_jar
+
+- name: download the BuildTools jar
+  get_url:
+    url: https://hub.spigotmc.org/jenkins/job/BuildTools/lastSuccessfulBuild/artifact/target/BuildTools.jar
+    dest: /usr/minecraft/build-tools/BuildTools.jar
+    mode: '0666'
+  become: yes
+  become_user: minecraft
+  when: not build_jar.stat.exists
+
+- name: check if the BuildTools jar has already run
+  stat:
+    path: /usr/minecraft/build-tools/BuildTools.log.txt
+  register: build_log
+
+- name: build the tools for spigot
+  command:
+    argv:
+      - java
+      - -jar
+      - BuildTools.jar
+    chdir: /usr/minecraft/build-tools
+  become: yes
+  become_user: minecraft
+  when: not build_log.stat.exists
+
+- name: create the directory for the server jar
+  file:
+    path: /usr/minecraft/server
+    state: directory
+  become: yes
+  become_user: minecraft
+
+- name: find the server jar
+  find:
+    recurse: no
+    file_type: file
+    paths: /usr/minecraft/build-tools
+    patterns: "spigot-*.jar"
+  register: file_paths
+
+- name: install the server jar
+  command:
+    argv:
+      - mv
+      - --
+      - "{{ item.path }}"
+      - /usr/minecraft/server
+  with_items:
+    - "{{ file_paths.files }}"
+  become: yes
+  become_user: minecraft
+
+- name: create a link to the server jar
+  file:
+    src: "{{ file_paths.files[0].path | basename }}"
+    dest: /usr/minecraft/server/spigot.jar
+    state: link
+  become: yes
+  become_user: minecraft
+  when: file_paths.files | length > 0
+
+- name: install the minecraft eula
+  copy:
+    src: files/usr
+    dest: /
+    owner: minecraft
+    group: games
+    mode: "0644"
+
+- name: install the minecraft server config
+  template:
+    src: usr/minecraft/server/server.properties.j2
+    dest: /usr/minecraft/server/server.properties
+    owner: minecraft
+    group: games
+    mode: "0644"
+
+- name: install the minecraft service unit
+  template:
+    src: etc/systemd/system/minecraft.service.j2
+    dest: /etc/systemd/system/minecraft.service
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: enable and start the minecraft service
+  systemd:
+    name: minecraft
+    state: started
+    enabled: yes

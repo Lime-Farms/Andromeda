@@ -1,0 +1,16 @@
+[Unit]
+Description=Minecraft Server
+After=network.target
+
+[Service]
+WorkingDirectory=/usr/minecraft/server
+User=minecraft
+Group=games
+ExecStart=screen -DmS minecraft java -Xms{{ mc_mem }}G -Xmx{{ mc_mem }}G -XX:+UseG1GC -jar /usr/minecraft/server/spigot.jar --nogui
+ExecReload=screen -p 0 -S minecraft -X eval 'stuff "reload"\\015'
+ExecStop=screen -p 0 -S minecraft -X eval 'stuff "say SERVER SHUTTING DOWN. Saving map..."\\015'
+ExecStop=screen -p 0 -S minecraft -X eval 'stuff "save-all"\\015'
+ExecStop=screen -p 0 -S minecraft -X eval 'stuff "stop"\\015'
+
+[Install]
+WantedBy=multi-user.target

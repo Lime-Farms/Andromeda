@@ -45,4 +45,16 @@ This role has the following default variables:
   * cf_email: email used to register with Cloudflare
   * domain: Root domain name to create zone records against
 
+### `minecraft`
+
+Install, configure, and start a spigot minecraft server.
+
+This role has the following default variables:
+
+  * mc_difficulty: difficulty level for the server
+  * mc_gamemode: default gamemode for players
+  * mc_maxplayers: maximum amount of players
+  * mc_motd: message of the day when listing the server
+  * mc_mem: amount of memory (in gigabytes) to allocate for the server
+
 ## Playbooks
