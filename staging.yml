@@ -1,0 +1,26 @@
+---
+- hosts: staging
+  gather_facts: true
+  remote_user: root
+  roles:
+    - role: init
+    - role: acme
+      vars:
+        renew_email: nchambers@securitea.app
+        acme_endpoint: https://acme-staging-v02.api.letsencrypt.org/directory
+        cf_key: dcc7d94e86e25289db378f52c86addc7248f1
+        domain: naughtysysadmins.com
+    - role: user
+      vars:
+        username: uplime
+        group: uplime
+        comment: Nicholas Chambers
+        shell: /bin/bash
+        admin: yes
+        sshkey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFYqrkyWS+IwF/fvFsYdqDxswaEcBhM1Sf2XFz3VLUGG"
+    - role: minecraft
+      vars:
+        mc_maxplayers: 10
+        mc_motd: The officially unofficial Burnedout Bastards Minecraft Server
+        mc_mem: 1
+    - role: ssh
