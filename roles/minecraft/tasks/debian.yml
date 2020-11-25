@@ -1,4 +1,4 @@
-- name: ensure apparmor utilities are installed
+- name: ensure java is installed
   apt:
     name:
       - openjdk-11-jdk
