@@ -58,3 +58,5 @@ This role has the following default variables:
   * mc_mem: amount of memory (in gigabytes) to allocate for the server
 
 ## Playbooks
+
+  * staging.yml: used purely for testing roles
