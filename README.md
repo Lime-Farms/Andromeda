@@ -60,3 +60,5 @@ This role has the following default variables:
 ## Playbooks
 
   * staging.yml: used purely for testing roles
+  * init.yml: configure any uninitialized server with default settings
+  * minecraft.yml: deploy a configured minecraft server, ready for playing

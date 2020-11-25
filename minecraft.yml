@@ -1,0 +1,9 @@
+---
+- hosts: staging
+  become: yes
+  roles:
+    - role: minecraft
+      vars:
+        mc_maxplayers: 10
+        mc_motd: The officially unofficial Burnedout Bastards Minecraft Server
+        mc_mem: 3
