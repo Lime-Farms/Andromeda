@@ -3,6 +3,9 @@ all:
     staging:
       hosts:
         mary.naughtysysadmins.com:
+    uninitialized:
+      hosts:
+        hudson.naughtysysadmins.com:
     minecraft:
       hosts:
         hudson.naughtysysadmins.com:
